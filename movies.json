@@ -1,0 +1,22 @@
+{
+    "The Shawshank Redemption": {
+        "year": "1994",
+        "rating": 9.3,
+        "poster": "https://example.com/shawshank.jpg"
+    },
+    "the matrix": {
+        "year": "1998",
+        "rating": 7.0,
+        "poster": ""
+    },
+    "they": {
+        "year": "2001",
+        "rating": 7.0,
+        "poster": ""
+    },
+    "the cult": {
+        "year": "1999",
+        "rating": 5.0,
+        "poster": ""
+    }
+}
