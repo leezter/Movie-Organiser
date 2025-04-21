@@ -1,4 +1,6 @@
 import random
+import requests
+from typing import Callable, Dict, List, Tuple
 from istorage import IStorage
 
 
@@ -13,6 +15,49 @@ class MovieApp:
                               for movie data persistence.
         """
         self._storage = storage
+        # OMDb API key
+        self._api_key = "45ce7064"
+
+
+    def _fetch_movie_data(self, title: str) -> Dict:
+        """
+        Fetch movie data from OMDb API.
+        
+        Args:
+            title (str): Movie title to search for
+            
+        Returns:
+            dict: Movie data from OMDb API or None if not found
+        """
+        # URL encode the title to handle spaces and special characters
+        url = f"http://www.omdbapi.com/?apikey={self._api_key}&t={requests.utils.quote(title)}"
+        try:
+            response = requests.get(url)
+            data = response.json()
+            
+            if data.get('Response') == 'True':
+                # Extract IMDb rating and convert to float
+                rating = 0.0
+                if 'imdbRating' in data and data['imdbRating'] != 'N/A':
+                    rating = float(data['imdbRating'])
+                
+                # Extract year and convert to integer
+                year = 0
+                if 'Year' in data and data['Year'] != 'N/A':
+                    # Handle cases where year might be a range (e.g., "2020-2021")
+                    year = int(data['Year'].split('–')[0])
+                
+                return {
+                    'title': data['Title'],
+                    'year': year,
+                    'rating': rating,
+                    'poster': data.get('Poster', '')
+                }
+            return None
+        except (requests.RequestException, ValueError, KeyError) as e:
+            print(f"Error fetching movie data: {e}")  # Add error logging
+            return None
+
 
     def _command_list_movies(self):
         """List all movies in the database."""
@@ -25,17 +70,37 @@ class MovieApp:
         for title, data in movies.items():
             print(f"{title} ({data['year']}): {data['rating']}")
 
-    def _command_add_movie(self):
-        """Add a new movie to the database."""
-        title = input("Enter movie title: ")
-        year = input("Enter movie year: ")
-        rating = float(input("Enter movie rating (0-10): "))
-        poster = input("Enter movie poster URL: ")
 
-        if self._storage.add_movie(title, year, rating, poster):
-            print(f"Movie '{title}' successfully added")
+    def _command_add_movie(self) -> None:
+        """Add a movie to the movie database."""
+        title = input("Enter movie title: ")
+        
+        # Fetch movie data from OMDb API
+        movie_data = self._fetch_movie_data(title)
+        
+        if movie_data:
+            print("\nMovie found! Here's what we got:")
+            print(f"Title: {movie_data['title']}")
+            print(f"Year: {movie_data['year']}")
+            print(f"Rating: {movie_data['rating']}")
+            print(f"Poster URL: {movie_data['poster']}")
+            
+            confirm = input("\nDo you want to add this movie? (y/n): ").lower()
+            if confirm == 'y':
+                if self._storage.add_movie(
+                    movie_data['title'],
+                    movie_data['year'],
+                    movie_data['rating'],
+                    movie_data['poster']
+                ):
+                    print(f"\nMovie '{movie_data['title']}' successfully added")
+                else:
+                    print("\nError: Movie not added")
+            else:
+                print("\nMovie not added")
         else:
-            print(f"Movie '{title}' already exists!")
+            print(f"\nError: Movie '{title}' not found in OMDb database")
+
 
     def _command_delete_movie(self):
         """Delete a movie from the database."""
@@ -44,6 +109,7 @@ class MovieApp:
             print(f"Movie '{title}' successfully deleted")
         else:
             print(f"Movie '{title}' not found")
+
 
     def _command_update_movie(self):
         """Update the rating of a movie in the database."""
@@ -54,6 +120,7 @@ class MovieApp:
             print(f"Movie '{title}' successfully updated")
         else:
             print(f"Movie '{title}' not found")
+
 
     def _command_movie_stats(self):
         """Display statistics about the movies in the database."""
@@ -74,6 +141,7 @@ class MovieApp:
         print(f"Best movie: {best_movie[0]} ({best_movie[1]['rating']})")
         print(f"Worst movie: {worst_movie[0]} ({worst_movie[1]['rating']})")
 
+
     def _command_random_movie(self):
         """Select and display a random movie from the database."""
         movies = self._storage.list_movies()
@@ -86,6 +154,7 @@ class MovieApp:
         print(f"\nYour random movie is: {title}")
         print(f"Year: {movie['year']}")
         print(f"Rating: {movie['rating']}")
+
 
     def _command_search_movie(self):
         """Search for a movie by title."""
@@ -101,6 +170,7 @@ class MovieApp:
         if not found:
             print(f"No movies found containing '{search_term}'")
 
+
     def _command_movies_sorted(self):
         """Display all movies sorted by rating in descending order."""
         movies = self._storage.list_movies()
@@ -113,12 +183,14 @@ class MovieApp:
         for title, data in sorted_movies:
             print(f"{title} ({data['year']}): {data['rating']}")
 
+
     def _generate_website(self):
         """Generate an HTML website displaying all movies.
         
         Note: Website generation will be implemented in a future update.
         """
         print("Website generation not implemented yet.")
+
 
     def run(self):
         """Run the movie application's main loop."""
